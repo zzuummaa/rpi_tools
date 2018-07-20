@@ -1,0 +1,11 @@
+[Unit]
+Description=rpi logger
+After=network-online.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/python3 /home/pi/rpilog/rpilog.py
+WantedBy=default.target
+
+[Install]
+WantedBy=multi-user.target
