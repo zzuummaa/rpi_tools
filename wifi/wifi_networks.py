@@ -3,11 +3,12 @@ import subprocess
 import sys
 from time import sleep
 
-CTRL_EVENT_SCAN_RESULTS="CTRL-EVENT-SCAN-RESULTS"
-CTRL_EVENT_SCAN_STARTED="CTRL-EVENT-SCAN-STARTED"
-WPS_AP_AVAILABLE="WPS-AP-AVAILABLE"
-COMMAND_STATUS_OK="OK"
-COMMAND_STATUS_FAIL="FAIL-BUSY"
+CTRL_EVENT_SCAN_RESULTS = "CTRL-EVENT-SCAN-RESULTS"
+CTRL_EVENT_SCAN_STARTED = "CTRL-EVENT-SCAN-STARTED"
+CTRL_EVENT_SSID_REENABLED = "CTRL-EVENT-SSID-REENABLED"
+WPS_AP_AVAILABLE = "WPS-AP-AVAILABLE"
+COMMAND_STATUS_OK = "OK"
+COMMAND_STATUS_FAIL = "FAIL-BUSY"
 
 
 class WpaCliParser(object):
@@ -40,8 +41,9 @@ class NetworkManager(object):
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
         out = out.decode('utf-8')
+
         if out != "OK\n":
-            raise Exception(out)
+            raise Exception('Status: ' + out)
 
     def list_networks(self):
         p = subprocess.Popen(['wpa_cli', '-i', self.interface, 'list_networks'],
@@ -72,9 +74,9 @@ class NetworkManager(object):
 
         while True:
             if y.poll(1):
-                str = p.stdout.readline().decode('utf-8')
-                sys.stdout.write('---' + str)
-                if str.find('<3>CTRL-EVENT-SCAN-RESULTS') != -1:
+                line = p.stdout.readline().decode('utf-8')
+                sys.stdout.write('---' + line)
+                if line.find('<3>CTRL-EVENT-SCAN-RESULTS') != -1:
                     break
             else:
                 sleep(0.1)
@@ -86,9 +88,19 @@ class NetworkManager(object):
         out = out.decode('utf-8').splitlines()
         for line in out:
             print('---' + line)
-        lines = out[2:-2]
-        networks = []
+        lines = out[:-2]
+
+        i = 0
         for line in lines:
+            if line.startswith('> scan_result'):
+                i += 2
+                break
+            i += 1
+        else:
+            raise Exception('Can\'t find \'> scan_result\'')
+
+        networks = []
+        for line in lines[i:]:
             attr = list(filter(None, line.split('\t')))
             networks.append(Network(bssid=attr[0], freq=attr[1], sig_lvl=attr[2], flags=attr[3], ssid=attr[4]))
 
